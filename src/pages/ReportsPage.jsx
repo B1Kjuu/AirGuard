@@ -1,25 +1,40 @@
 import { CalendarDays, Download, ChevronDown } from 'lucide-react';
 
-export default function ReportsPage() {
+export default function ReportsPage({ range, options, dropdownOpen, onToggleDropdown, onSelectRange, onExportCsv }) {
   const weeklyDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
     <div className="mx-auto w-full max-w-[1920px] overflow-x-hidden bg-surface-lowest p-container_padding md:pt-container_padding">
-      <div className="flex flex-1 flex-col gap-6">
+      <div className="relative flex flex-1 flex-col gap-6">
         <div className="mb-8 flex flex-col items-start justify-between gap-4 rounded-sm border border-outline-variant bg-surface-container p-4 shadow-inner sm:flex-row sm:items-center">
           <h1 className="font-display text-headline-md text-primary">System Reports</h1>
           <div className="flex flex-wrap items-center gap-4">
-            <button className="flex cursor-pointer items-center rounded-sm border border-outline-variant bg-background px-3 py-2 font-data text-data-sm text-on-surface transition-colors hover:border-primary">
+            <button type="button" onClick={onToggleDropdown} className="flex cursor-pointer items-center rounded-sm border border-outline-variant bg-background px-3 py-2 font-data text-data-sm text-on-surface transition-colors hover:border-primary">
               <CalendarDays className="mr-2 h-4 w-4 text-on-surface-variant" />
-              Last 7 Days
+              {range}
               <ChevronDown className="ml-2 h-4 w-4 text-on-surface-variant" />
             </button>
-            <button className="flex items-center gap-2 rounded-sm border border-outline-variant bg-surface-variant px-4 py-2 font-label-caps text-label-caps text-on-surface transition-colors hover:bg-surface-bright">
+            <button type="button" onClick={onExportCsv} className="flex items-center gap-2 rounded-sm border border-outline-variant bg-surface-variant px-4 py-2 font-label-caps text-label-caps text-on-surface transition-colors hover:bg-surface-bright">
               <Download className="h-4 w-4" />
               Export to CSV
             </button>
           </div>
         </div>
+
+        {dropdownOpen ? (
+          <div className="absolute right-0 top-16 z-20 w-48 overflow-hidden rounded-sm border border-outline-variant bg-surface-container shadow-lg">
+            {options.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onSelectRange(option)}
+                className="flex w-full items-center justify-start px-4 py-3 font-data text-data-sm text-on-surface transition-colors hover:bg-surface-container-high"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-card_gap md:grid-cols-3">
           <SummaryCard

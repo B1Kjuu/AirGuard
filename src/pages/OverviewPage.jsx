@@ -46,8 +46,11 @@ function ArrowUpText() {
   return <span className="text-[14px] leading-none">↑</span>;
 }
 
-export default function OverviewPage({ telemetry }) {
+const relayModes = ['ON', 'AUTO', 'OFF'];
+
+export default function OverviewPage({ telemetry, controls, onRelayModeChange }) {
   const chartLabel = useMemo(() => `${telemetry.aqi_ppm} PPM`, [telemetry.aqi_ppm]);
+  const overrideEnabled = Boolean(controls.masterOverride);
 
   return (
     <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-card_gap p-container_padding md:grid-cols-12">
@@ -107,20 +110,31 @@ export default function OverviewPage({ telemetry }) {
 
       <section className="col-span-1 rounded-lg border border-outline-variant bg-surface-container-high p-4 md:col-span-6">
         <div className="mb-4 flex items-center justify-between">
-          <div className="font-display text-label-caps text-on-surface-variant">Manual Override</div>
+          <div className="font-display text-label-caps text-on-surface-variant">Exhaust Fan Relay</div>
           <div className="rounded border border-outline-variant bg-surface-container-lowest px-2 py-1 font-data text-data-sm text-on-surface-variant">
-            {telemetry.manual_override ? 'UNLOCKED' : 'LOCKED'}
+            {telemetry.fan_status ? 'ACTIVE' : 'IDLE'}
           </div>
         </div>
-        <div className="flex items-center justify-between rounded border border-outline-variant bg-surface p-4 industrial-inset">
-          <div className="font-data text-data-sm text-outline">SYS_OVR_REQ</div>
-          <button
-            className="relative flex h-8 w-14 cursor-not-allowed items-center rounded-full border border-outline-variant bg-surface-container-lowest opacity-50"
-            disabled
-            aria-label="Manual override disabled"
-          >
-            <span className="absolute left-1 h-6 w-6 rounded-full bg-outline-variant" />
-          </button>
+        <div className="rounded border border-outline-variant bg-surface p-4 industrial-inset">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="font-data text-data-sm text-outline">RELAY_MODE</div>
+            <div className="font-data text-data-sm text-on-surface-variant">{controls.relayMode}</div>
+          </div>
+          <div className={`flex rounded-DEFAULT border border-outline-variant bg-surface-container p-1 ${overrideEnabled ? '' : 'pointer-events-none opacity-50'}`}>
+            {relayModes.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onRelayModeChange(mode)}
+                className={`flex-1 rounded-sm px-4 py-2 text-center font-mono text-data-sm transition-colors ${controls.relayMode === mode ? 'border border-outline-variant/50 bg-surface-variant text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 font-data text-data-sm text-on-surface-variant">
+            {overrideEnabled ? 'Manual override unlocked. Relay can be switched from the overview.' : 'Unlock manual override in Controls to change the relay.'}
+          </p>
         </div>
       </section>
 

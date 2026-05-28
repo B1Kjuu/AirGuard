@@ -1,6 +1,6 @@
 import { AlertTriangle, AirVent, LayoutDashboard, MonitorCog, Settings2, Thermometer, Waves, Zap } from 'lucide-react';
 
-function SensorPanel({ title, subtitle, online, value, unit, details, buttonLabel, children }) {
+function SensorPanel({ title, subtitle, online, value, unit, details, buttonLabel, onButtonClick, children }) {
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-800 p-container_padding inner-shadow-sm">
       <div className="pointer-events-none absolute right-0 top-0 -mr-8 -mt-8 h-32 w-32 rounded-bl-full bg-blue-500/5 transition-transform duration-500 group-hover:scale-110" />
@@ -39,16 +39,39 @@ function SensorPanel({ title, subtitle, online, value, unit, details, buttonLabe
             </div>
           ))}
         </div>
-        <button className="flex w-full items-center justify-center gap-2 rounded border border-slate-600 bg-slate-700/50 py-2 font-label-caps text-label-caps uppercase text-slate-100 transition-colors active:scale-95 hover:border-blue-400/50 hover:bg-slate-700">
-          <Settings2 className="h-4 w-4" />
-          {buttonLabel}
-        </button>
+        {buttonLabel ? (
+          <button
+            type="button"
+            onClick={onButtonClick}
+            className="flex w-full items-center justify-center gap-2 rounded border border-slate-600 bg-slate-700/50 py-2 font-label-caps text-label-caps uppercase text-slate-100 transition-colors active:scale-95 hover:border-blue-400/50 hover:bg-slate-700"
+          >
+            <Settings2 className="h-4 w-4" />
+            {buttonLabel}
+          </button>
+        ) : null}
       </div>
     </div>
   );
 }
 
-export default function SensorsPage({ telemetry, onGoOverview }) {
+function SensorActionCard({ onButtonClick, title, subtitle, online, value, unit, details, buttonLabel, children }) {
+  return (
+    <SensorPanel
+      title={title}
+      subtitle={subtitle}
+      online={online}
+      value={value}
+      unit={unit}
+      details={details}
+      buttonLabel={buttonLabel}
+      onButtonClick={onButtonClick}
+    >
+      {children}
+    </SensorPanel>
+  );
+}
+
+export default function SensorsPage({ telemetry, onGoOverview, onCalibrate, onRefreshData, onRunDiagnosticTest, statusMessage }) {
   return (
     <div className="mx-auto max-w-6xl px-container_padding pb-10">
       <div className="flex flex-col gap-6">
@@ -84,14 +107,24 @@ export default function SensorsPage({ telemetry, onGoOverview }) {
               <span className="font-data text-data-sm text-status-online">Network: STABLE</span>
             </div>
           </div>
-          <button className="inline-flex w-full items-center justify-center gap-2 rounded border border-outline-variant px-4 py-2 font-display text-label-caps text-on-surface transition-colors hover:bg-surface-container-high active:scale-95 md:w-auto">
+          <button
+            type="button"
+            onClick={onRunDiagnosticTest}
+            className="inline-flex w-full items-center justify-center gap-2 rounded border border-outline-variant px-4 py-2 font-display text-label-caps text-on-surface transition-colors hover:bg-surface-container-high active:scale-95 md:w-auto"
+          >
             <AirVent className="h-4 w-4" />
             Run Diagnostic Test
           </button>
         </div>
 
+        {statusMessage ? (
+          <div className="rounded-lg border border-status-success/30 bg-status-success/10 px-4 py-3 font-data text-data-sm text-status-success">
+            {statusMessage}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-card_gap lg:grid-cols-2">
-          <SensorPanel
+          <SensorActionCard
             title="MQ-135 Gas & VOC Sensor"
             subtitle="Air Quality Monitor"
             online
@@ -103,6 +136,7 @@ export default function SensorsPage({ telemetry, onGoOverview }) {
               ['Last Calibrated', '2 days ago'],
             ]}
             buttonLabel="Calibrate Sensor"
+            onButtonClick={onCalibrate}
           >
             <div className="mt-4 flex h-12 w-full items-end gap-1 opacity-80">
               <div className="flex h-1 w-full items-end rounded bg-slate-700">
@@ -111,9 +145,9 @@ export default function SensorsPage({ telemetry, onGoOverview }) {
                 <div className="h-full w-1/3 rounded-r bg-status-online" />
               </div>
             </div>
-          </SensorPanel>
+          </SensorActionCard>
 
-          <SensorPanel
+          <SensorActionCard
             title="DHT22 Module"
             subtitle="Temp & Humidity"
             online
@@ -125,6 +159,7 @@ export default function SensorsPage({ telemetry, onGoOverview }) {
               ['Accuracy', '±0.5°C'],
             ]}
             buttonLabel="Refresh Data"
+            onButtonClick={onRefreshData}
           >
             <div className="flex flex-grow gap-8 py-4">
               <div className="flex flex-col justify-center">
@@ -147,7 +182,7 @@ export default function SensorsPage({ telemetry, onGoOverview }) {
                 </div>
               </div>
             </div>
-          </SensorPanel>
+          </SensorActionCard>
         </div>
       </div>
     </div>

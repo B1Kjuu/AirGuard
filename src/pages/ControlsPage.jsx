@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { AlertTriangle, Save, Settings2 } from 'lucide-react';
 
 const relayModes = ['ON', 'AUTO', 'OFF'];
@@ -30,12 +29,7 @@ function RangeRow({ label, value, unit, minLabel, maxLabel, onChange, step = 1, 
   );
 }
 
-function ControlsPage() {
-  const [aqiTrigger, setAqiTrigger] = useState(1000);
-  const [heatTrigger, setHeatTrigger] = useState(33.0);
-  const [masterOverride, setMasterOverride] = useState(false);
-  const [relayMode, setRelayMode] = useState('AUTO');
-
+export default function ControlsPage({ config, onChange, onSave, saveStatus }) {
   return (
     <div className="bg-surface-dim min-h-[calc(100vh-4rem)] px-container_padding pb-10 text-on-surface md:py-0">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
@@ -58,35 +52,40 @@ function ControlsPage() {
             <div className="space-y-8">
               <RangeRow
                 label="AQI Trigger Limit"
-                value={aqiTrigger}
-                unit=""
+                value={config.aqiTrigger}
+                unit="PPM"
                 minLabel="400"
                 maxLabel="2000"
                 min={400}
                 max={2000}
                 step={1}
-                onChange={(nextValue) => setAqiTrigger(Number(nextValue))}
+                onChange={(nextValue) => onChange({ aqiTrigger: Number(nextValue) })}
               />
 
               <RangeRow
                 label="Heat Index Trigger Limit"
-                value={heatTrigger.toFixed(1)}
+                value={config.heatTrigger.toFixed(1)}
                 unit="°C"
                 minLabel="25.0°C"
                 maxLabel="50.0°C"
                 min={25}
                 max={50}
                 step={0.1}
-                onChange={(nextValue) => setHeatTrigger(Number(nextValue))}
+                onChange={(nextValue) => onChange({ heatTrigger: Number(nextValue) })}
               />
             </div>
 
             <div className="mt-8 flex justify-end border-t border-outline-variant pt-6">
-              <button className="inline-flex items-center gap-2 rounded-DEFAULT border border-outline-variant bg-surface-container-high px-6 py-2 font-display text-label-caps text-on-surface transition-all hover:border-primary hover:bg-surface-bright">
+              <button
+                type="button"
+                onClick={onSave}
+                className="inline-flex items-center gap-2 rounded-DEFAULT border border-outline-variant bg-surface-container-high px-6 py-2 font-display text-label-caps text-on-surface transition-all hover:border-primary hover:bg-surface-bright"
+              >
                 <Save className="h-4 w-4" />
                 Save Configuration
               </button>
             </div>
+            {saveStatus ? <p className="mt-3 text-right font-data text-data-sm text-status-success">{saveStatus}</p> : null}
           </section>
 
           <section className="rounded-lg border border-outline-variant bg-surface p-6 industrial-inset">
@@ -103,14 +102,14 @@ function ControlsPage() {
                 <input
                   className="sr-only peer"
                   type="checkbox"
-                  checked={masterOverride}
-                  onChange={(event) => setMasterOverride(event.target.checked)}
+                  checked={config.masterOverride}
+                  onChange={(event) => onChange({ masterOverride: event.target.checked })}
                 />
                 <div className="peer h-6 w-11 rounded-full bg-surface-variant after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-outline-variant after:bg-on-surface after:transition-all after:content-[''] peer-checked:bg-error peer-checked:after:translate-x-full peer-checked:after:border-white" />
               </label>
             </div>
 
-            <div className={`space-y-6 transition-opacity duration-300 ${masterOverride ? '' : 'pointer-events-none opacity-50'}`}>
+            <div className={`space-y-6 transition-opacity duration-300 ${config.masterOverride ? '' : 'pointer-events-none opacity-50'}`}>
               <div>
                 <label className="font-label-caps mb-3 block text-label-caps uppercase tracking-wider text-on-surface-variant">Exhaust Fan Relay</label>
                 <div className="flex rounded-DEFAULT border border-outline-variant bg-surface-container p-1">
@@ -118,8 +117,8 @@ function ControlsPage() {
                     <button
                       key={mode}
                       type="button"
-                      onClick={() => setRelayMode(mode)}
-                      className={`flex-1 rounded-sm px-4 py-2 text-center font-mono text-data-sm transition-colors ${relayMode === mode ? 'border border-outline-variant/50 bg-surface-variant text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                      onClick={() => onChange({ relayMode: mode })}
+                      className={`flex-1 rounded-sm px-4 py-2 text-center font-mono text-data-sm transition-colors ${config.relayMode === mode ? 'border border-outline-variant/50 bg-surface-variant text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
                     >
                       {mode}
                     </button>
@@ -148,5 +147,3 @@ function ControlsPage() {
     </div>
   );
 }
-
-export default ControlsPage;

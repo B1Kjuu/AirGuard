@@ -5,33 +5,8 @@ import {
   Trash2,
 } from 'lucide-react';
 
-export default function MaintenancePage() {
-  const eventRows = [
-    {
-      time: '10 mins ago',
-      type: 'TRIGGER',
-      description: 'Heat Index Exceeded (34.2°C)',
-      status: 'CRITICAL',
-      statusClass: 'bg-error/10 text-status-critical border border-status-critical/30',
-      dotClass: 'bg-status-critical',
-    },
-    {
-      time: '12 mins ago',
-      type: 'ACTION',
-      description: 'Relay D5 Closed (Fan ON)',
-      status: 'SUCCESS',
-      statusClass: 'bg-status-success/10 text-status-success border border-status-success/30',
-      dotClass: 'bg-status-success',
-    },
-    {
-      time: '2 hours ago',
-      type: 'NETWORK',
-      description: 'Firebase Reconnection',
-      status: 'INFO',
-      statusClass: 'bg-status-info/10 text-status-info border border-status-info/30',
-      dotClass: 'bg-status-info',
-    },
-  ];
+export default function MaintenancePage({ rows, onClearLogs, onExportDump, onRebootMicrocontroller }) {
+  const eventRows = rows;
 
   return (
     <div className="mx-auto w-full max-w-[1920px] bg-surface-lowest p-container_padding md:pt-container_padding">
@@ -118,16 +93,16 @@ export default function MaintenancePage() {
           <div className="data-card rounded-lg p-6">
             <h3 className="mb-6 font-label-caps text-label-caps uppercase tracking-widest text-on-surface">System Actions</h3>
             <div className="flex flex-col gap-3">
-              <button className="flex w-full items-center justify-center gap-2 rounded bg-surface-container-high px-4 py-3 font-label-caps text-label-caps uppercase text-on-surface transition-colors hover:bg-surface-bright">
+              <button type="button" onClick={onClearLogs} className="flex w-full items-center justify-center gap-2 rounded bg-surface-container-high px-4 py-3 font-label-caps text-label-caps uppercase text-on-surface transition-colors hover:bg-surface-bright">
                 <Trash2 className="h-4 w-4 text-on-surface-variant" />
                 Clear Log
               </button>
-              <button className="flex w-full items-center justify-center gap-2 rounded bg-surface-container-high px-4 py-3 font-label-caps text-label-caps uppercase text-on-surface transition-colors hover:bg-surface-bright">
+              <button type="button" onClick={onExportDump} className="flex w-full items-center justify-center gap-2 rounded bg-surface-container-high px-4 py-3 font-label-caps text-label-caps uppercase text-on-surface transition-colors hover:bg-surface-bright">
                 <Download className="h-4 w-4 text-on-surface-variant" />
                 Export Error Dump
               </button>
               <hr className="my-3 border-outline-variant/30" />
-              <button className="group flex w-full items-center justify-center gap-2 rounded border border-status-critical/30 bg-surface-container-lowest px-4 py-3 font-label-caps text-label-caps uppercase text-status-critical transition-colors hover:bg-status-critical/10">
+              <button type="button" onClick={onRebootMicrocontroller} className="group flex w-full items-center justify-center gap-2 rounded border border-status-critical/30 bg-surface-container-lowest px-4 py-3 font-label-caps text-label-caps uppercase text-status-critical transition-colors hover:bg-status-critical/10">
                 <RefreshCw className="h-4 w-4 group-hover:animate-spin" />
                 Reboot Microcontroller
               </button>
