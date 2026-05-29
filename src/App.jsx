@@ -102,12 +102,11 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
     >
       <Icon className={compact ? 'h-4 w-4' : 'h-5 w-5'} />
       {label}
-              <button
-                className="mt-2 w-full flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                onClick={() => openConfirmModal('emergency_stop')}
-              >
-                Emergency Stop
-              </button>
+    </button>
+  );
+}
+
+function App() {
   const [controls, setControls] = useState(initialControls);
   const [currentPage, setCurrentPage] = useState('overview');
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false);
@@ -386,6 +385,10 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
       // notify device to reboot
       const cmd = { type: 'reboot', issuedAt: Date.now(), issuedBy: 'web' };
       void push(ref(db, 'AIRGUARD_Commands'), cmd);
+      void set(ref(db, 'AIRGUARD_Controls/reboot'), true);
+      window.setTimeout(() => {
+        void set(ref(db, 'AIRGUARD_Controls/reboot'), false);
+      }, 1000);
       setTelemetry(defaultTelemetry);
       setControls(initialControls);
       setOverviewLive(defaultOverview);
@@ -399,6 +402,14 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
       void set(ref(db, 'AIRGUARD_Reports'), defaultReports);
       setLastControlSyncAt(Date.now());
       setSaveStatus('Microcontroller rebooted');
+      closeModal();
+      return;
+    }
+
+    if (modal.type === 'emergency_stop') {
+      handleEmergencyStop();
+      closeModal();
+      return;
     }
 
     closeModal();
@@ -686,7 +697,7 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
             </button>
             <button
               type="button"
-              onClick={() => handleEmergencyStop()}
+              onClick={() => openConfirmModal('emergency_stop')}
               className="flex w-full items-center justify-center gap-2 rounded-DEFAULT border border-status-critical bg-surface-container-high py-3 font-display text-label-caps text-error transition-colors hover:bg-status-critical/10"
             >
               <AlertTriangle className="h-4 w-4" />
