@@ -10,18 +10,6 @@ import {
   YAxis,
 } from 'recharts';
 
-const chartData = [
-  { time: '00', aqi: 210 },
-  { time: '03', aqi: 255 },
-  { time: '06', aqi: 320 },
-  { time: '09', aqi: 410 },
-  { time: '12', aqi: 450 },
-  { time: '15', aqi: 430 },
-  { time: '18', aqi: 470 },
-  { time: '21', aqi: 490 },
-  { time: '24', aqi: 450 },
-];
-
 function StatCard({ label, value, unit, accentClass, icon: Icon, subtext }) {
   return (
     <div className="min-h-[132px] flex flex-col justify-between rounded-lg border border-outline-variant bg-surface-container p-4 industrial-inset">
@@ -48,9 +36,10 @@ function ArrowUpText() {
 
 const relayModes = ['ON', 'AUTO', 'OFF'];
 
-export default function OverviewPage({ telemetry, controls, onRelayModeChange }) {
+export default function OverviewPage({ telemetry, controls, onRelayModeChange, chartData = [] }) {
   const chartLabel = useMemo(() => `${telemetry.aqi_ppm} PPM`, [telemetry.aqi_ppm]);
   const overrideEnabled = Boolean(controls.masterOverride);
+  const hasChartData = Array.isArray(chartData) && chartData.length > 0;
 
   return (
     <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-card_gap p-container_padding md:grid-cols-12">
@@ -153,18 +142,24 @@ export default function OverviewPage({ telemetry, controls, onRelayModeChange })
             }}
           />
           <div className="absolute inset-0 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="time" tick={{ fill: '#c6c6cd', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.15)' }} tickLine={false} />
-                <YAxis tick={{ fill: '#c6c6cd', fontSize: 12 }} axisLine={false} tickLine={false} width={24} />
-                <Tooltip
-                  contentStyle={{ background: '#122131', border: '1px solid #45464d', color: '#d4e4fa' }}
-                  labelStyle={{ color: '#bec6e0' }}
-                />
-                <Line type="monotone" dataKey="aqi" stroke="#bec6e0" strokeWidth={3} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            {hasChartData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: '#c6c6cd', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.15)' }} tickLine={false} />
+                  <YAxis tick={{ fill: '#c6c6cd', fontSize: 12 }} axisLine={false} tickLine={false} width={24} />
+                  <Tooltip
+                    contentStyle={{ background: '#122131', border: '1px solid #45464d', color: '#d4e4fa' }}
+                    labelStyle={{ color: '#bec6e0' }}
+                  />
+                  <Line type="monotone" dataKey="aqi" stroke="#bec6e0" strokeWidth={3} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded border border-dashed border-outline-variant/30 bg-surface-container/50 font-data text-data-sm text-on-surface-variant">
+                No live trend data yet.
+              </div>
+            )}
           </div>
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="rounded bg-surface-container-high/80 px-4 py-2 font-data text-data-sm text-outline-variant backdrop-blur-sm">

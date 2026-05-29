@@ -29,7 +29,9 @@ function RangeRow({ label, value, unit, minLabel, maxLabel, onChange, step = 1, 
   );
 }
 
-export default function ControlsPage({ config, onChange, onSave, saveStatus }) {
+export default function ControlsPage({ config, onChange, onSave, saveStatus, lastSyncedAt }) {
+  const lastSyncedLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : 'Waiting for Firebase sync';
+
   return (
     <div className="bg-surface-dim min-h-[calc(100vh-4rem)] px-container_padding pb-10 text-on-surface md:py-0">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
@@ -85,7 +87,10 @@ export default function ControlsPage({ config, onChange, onSave, saveStatus }) {
                 Save Configuration
               </button>
             </div>
-            {saveStatus ? <p className="mt-3 text-right font-data text-data-sm text-status-success">{saveStatus}</p> : null}
+            <div className="mt-3 flex flex-col gap-1 text-right font-data text-data-sm text-on-surface-variant">
+              <span>Last synced to Firebase: {lastSyncedLabel}</span>
+              {saveStatus ? <span className="text-status-success">{saveStatus}</span> : null}
+            </div>
           </section>
 
           <section className="rounded-lg border border-outline-variant bg-surface p-6 industrial-inset">

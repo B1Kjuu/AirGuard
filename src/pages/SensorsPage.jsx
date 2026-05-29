@@ -71,7 +71,7 @@ function SensorActionCard({ onButtonClick, title, subtitle, online, value, unit,
   );
 }
 
-export default function SensorsPage({ telemetry, onGoOverview, onCalibrate, onRefreshData, onRunDiagnosticTest, statusMessage }) {
+export default function SensorsPage({ telemetry, onGoOverview, onCalibrate, onRefreshData, onRunDiagnosticTest, statusMessage, isOnline }) {
   return (
     <div className="mx-auto max-w-6xl px-container_padding pb-10">
       <div className="flex flex-col gap-6">
@@ -127,7 +127,7 @@ export default function SensorsPage({ telemetry, onGoOverview, onCalibrate, onRe
           <SensorActionCard
             title="MQ-135 Gas & VOC Sensor"
             subtitle="Air Quality Monitor"
-            online
+            online={isOnline}
             value={telemetry.aqi_ppm}
             unit="PPM"
             details={[
@@ -150,7 +150,7 @@ export default function SensorsPage({ telemetry, onGoOverview, onCalibrate, onRe
           <SensorActionCard
             title="DHT22 Module"
             subtitle="Temp & Humidity"
-            online
+            online={isOnline}
             value={null}
             unit=""
             details={[

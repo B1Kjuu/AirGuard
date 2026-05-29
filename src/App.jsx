@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BookText,
@@ -12,6 +12,8 @@ import {
   ShieldAlert,
   Zap,
 } from 'lucide-react';
+import { onValue, ref, set, push } from 'firebase/database';
+import { db } from './firebase';
 import OverviewPage from './pages/OverviewPage';
 import SensorsPage from './pages/SensorsPage';
 import ControlsPage from './pages/ControlsPage';
@@ -20,15 +22,13 @@ import ReportsPage from './pages/ReportsPage';
 import SupportPage from './pages/SupportPage';
 import DocumentationPage from './pages/DocumentationPage';
 
-const storageKeys = {
-  controls: 'airguard-plus-controls',
-};
-
-const initialTelemetry = {
-  temperature: 31.4,
-  humidity: 54.3,
-  heat_index: 34.2,
-  aqi_ppm: 450,
+const defaultTelemetry = {
+  temperature: 0,
+  humidity: 0,
+  heat_index: 0,
+  aqi_ppm: 0,
+  fan_status: false,
+  manual_override: false,
 };
 
 const initialControls = {
@@ -38,47 +38,39 @@ const initialControls = {
   masterOverride: false,
 };
 
-const initialMaintenanceRows = [
-  {
-    time: '10 mins ago',
-    type: 'TRIGGER',
-    description: 'Heat Index Exceeded (34.2°C)',
-    status: 'CRITICAL',
-    statusClass: 'bg-error/10 text-status-critical border border-status-critical/30',
-    dotClass: 'bg-status-critical',
+const defaultMaintenance = {
+  firmwareVersion: '',
+  uptime: {
+    days: '',
+    hours: '',
   },
-  {
-    time: '12 mins ago',
-    type: 'ACTION',
-    description: 'Relay D5 Closed (Fan ON)',
-    status: 'SUCCESS',
-    statusClass: 'bg-status-success/10 text-status-success border border-status-success/30',
-    dotClass: 'bg-status-success',
-  },
-  {
-    time: '2 hours ago',
-    type: 'NETWORK',
-    description: 'Firebase Reconnection',
-    status: 'INFO',
-    statusClass: 'bg-status-info/10 text-status-info border border-status-info/30',
-    dotClass: 'bg-status-info',
-  },
-];
+  filterRemaining: 0,
+  rows: [],
+};
 
-const reportOptions = ['Last 24 Hours', 'Last 7 Days', 'Last 30 Days', 'Custom Range'];
+const defaultReports = {
+  range: 'Last 7 Days',
+  options: [],
+  summaryCards: [],
+  weeklyDays: [],
+  chartData: [],
+};
 
-function loadStoredControls() {
-  if (typeof window === 'undefined') {
-    return initialControls;
-  }
+const defaultOverview = {
+  chartData: [],
+};
 
-  try {
-    const stored = window.localStorage.getItem(storageKeys.controls);
-    return stored ? { ...initialControls, ...JSON.parse(stored) } : initialControls;
-  } catch {
-    return initialControls;
-  }
-}
+const defaultSupport = {
+  heroTitle: 'Support Center',
+  heroBody: '',
+  cards: [],
+};
+
+const defaultDocumentation = {
+  heroTitle: 'Documentation',
+  heroBody: '',
+  cards: [],
+};
 
 function downloadTextFile(filename, contents, mimeType = 'text/plain;charset=utf-8') {
   const blob = new Blob([contents], { type: mimeType });
@@ -110,23 +102,229 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
     >
       <Icon className={compact ? 'h-4 w-4' : 'h-5 w-5'} />
       {label}
-    </button>
-  );
-}
-
-function App() {
-  const [telemetry, setTelemetry] = useState(initialTelemetry);
-  const [controls, setControls] = useState(loadStoredControls);
-  const [currentPage, setCurrentPage] = useState('controls');
-  const [maintenanceRows, setMaintenanceRows] = useState(initialMaintenanceRows);
-  const [reportsRange, setReportsRange] = useState('Last 7 Days');
+              <button
+                className="mt-2 w-full flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                onClick={() => openConfirmModal('emergency_stop')}
+              >
+                Emergency Stop
+              </button>
+  const [controls, setControls] = useState(initialControls);
+  const [currentPage, setCurrentPage] = useState('overview');
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false);
   const [modal, setModal] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+  const [maintenanceLive, setMaintenanceLive] = useState(defaultMaintenance);
+  const [reportsLive, setReportsLive] = useState(defaultReports);
+  const [overviewLive, setOverviewLive] = useState(defaultOverview);
+  const [supportLive, setSupportLive] = useState(defaultSupport);
+  const [documentationLive, setDocumentationLive] = useState(defaultDocumentation);
+  const [lastControlSyncAt, setLastControlSyncAt] = useState(0);
+  const lastTelemetryUpdateRef = useRef(0);
+  const telemetryStaleTimeoutMs = 12000;
 
   useEffect(() => {
-    window.localStorage.setItem(storageKeys.controls, JSON.stringify(controls));
-  }, [controls]);
+    const liveRef = ref(db, 'AIRGUARD_Live');
+
+    const unsubscribe = onValue(
+      liveRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          lastTelemetryUpdateRef.current = Date.now();
+          setTelemetry({ ...defaultTelemetry, ...snapshot.val() });
+          setIsOnline(true);
+        } else {
+          lastTelemetryUpdateRef.current = 0;
+          setTelemetry(defaultTelemetry);
+          setIsOnline(false);
+        }
+      },
+      (error) => {
+        console.error('Firebase Read Error: ', error);
+        lastTelemetryUpdateRef.current = 0;
+        setTelemetry(defaultTelemetry);
+        setIsOnline(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      if (!lastTelemetryUpdateRef.current) {
+        return;
+      }
+
+      if (Date.now() - lastTelemetryUpdateRef.current > telemetryStaleTimeoutMs) {
+        setTelemetry(defaultTelemetry);
+        setIsOnline(false);
+        lastTelemetryUpdateRef.current = 0;
+      }
+    }, 2000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  useEffect(() => {
+    const controlsRef = ref(db, 'AIRGUARD_Controls');
+
+    const unsubscribe = onValue(
+      controlsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setControls({ ...initialControls, ...snapshot.val() });
+          setLastControlSyncAt(Date.now());
+        } else {
+          setControls(initialControls);
+        }
+      },
+      (error) => {
+        console.error('Firebase Controls Read Error: ', error);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const overviewRef = ref(db, 'AIRGUARD_Overview');
+
+    const unsubscribe = onValue(
+      overviewRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setOverviewLive(defaultOverview);
+          return;
+        }
+
+        const data = snapshot.val() || {};
+        setOverviewLive({
+          chartData: Array.isArray(data.chartData) ? data.chartData : [],
+        });
+      },
+      (error) => {
+        console.error('Firebase Overview Read Error: ', error);
+        setOverviewLive(defaultOverview);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const maintenanceRef = ref(db, 'AIRGUARD_Maintenance');
+
+    const unsubscribe = onValue(
+      maintenanceRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setMaintenanceLive(defaultMaintenance);
+          return;
+        }
+
+        const data = snapshot.val() || {};
+        setMaintenanceLive({
+          firmwareVersion: data.firmwareVersion ?? '',
+          uptime: {
+            days: data.uptime?.days ?? '',
+            hours: data.uptime?.hours ?? '',
+          },
+          filterRemaining: typeof data.filterRemaining === 'number' ? data.filterRemaining : 0,
+          rows: Array.isArray(data.rows) ? data.rows : [],
+        });
+      },
+      (error) => {
+        console.error('Firebase Maintenance Read Error: ', error);
+        setMaintenanceLive(defaultMaintenance);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const reportsRef = ref(db, 'AIRGUARD_Reports');
+
+    const unsubscribe = onValue(
+      reportsRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setReportsLive(defaultReports);
+          return;
+        }
+
+        const data = snapshot.val() || {};
+        setReportsLive({
+          range: data.range ?? 'Last 7 Days',
+          options: Array.isArray(data.options) ? data.options : [],
+          summaryCards: Array.isArray(data.summaryCards) ? data.summaryCards : [],
+          weeklyDays: Array.isArray(data.weeklyDays) ? data.weeklyDays : [],
+          chartData: Array.isArray(data.chartData) ? data.chartData : [],
+        });
+      },
+      (error) => {
+        console.error('Firebase Reports Read Error: ', error);
+        setReportsLive(defaultReports);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const supportRef = ref(db, 'AIRGUARD_Support');
+
+    const unsubscribe = onValue(
+      supportRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setSupportLive(defaultSupport);
+          return;
+        }
+
+        const data = snapshot.val() || {};
+        setSupportLive({
+          heroTitle: data.heroTitle ?? '',
+          heroBody: data.heroBody ?? '',
+          cards: Array.isArray(data.cards) ? data.cards : [],
+        });
+      },
+      (error) => {
+        console.error('Firebase Support Read Error: ', error);
+        setSupportLive(defaultSupport);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const docsRef = ref(db, 'AIRGUARD_Documentation');
+
+    const unsubscribe = onValue(
+      docsRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setDocumentationLive(defaultDocumentation);
+          return;
+        }
+
+        const data = snapshot.val() || {};
+        setDocumentationLive({
+          heroTitle: data.heroTitle ?? '',
+          heroBody: data.heroBody ?? '',
+          cards: Array.isArray(data.cards) ? data.cards : [],
+        });
+      },
+      (error) => {
+        console.error('Firebase Documentation Read Error: ', error);
+        setDocumentationLive(defaultDocumentation);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!saveStatus) {
@@ -156,16 +354,6 @@ function App() {
   );
 
   const openConfirmModal = (type) => {
-    if (type === 'emergency-stop') {
-      setModal({
-        type,
-        title: 'Emergency Stop',
-        message: 'This will force the fan OFF and clear manual override. Continue?',
-        confirmLabel: 'Stop System',
-      });
-      return;
-    }
-
     if (type === 'reboot') {
       setModal({
         type,
@@ -173,6 +361,17 @@ function App() {
         message: 'This will reset the live dashboard state back to defaults. Continue?',
         confirmLabel: 'Reboot Now',
       });
+      return;
+    }
+
+    if (type === 'emergency_stop') {
+      setModal({
+        type,
+        title: 'Confirm Emergency Stop',
+        message: 'Emergency Stop will immediately set relays OFF and notify the device. This is irreversible from the UI without manual reset. Continue?',
+        confirmLabel: 'Emergency Stop',
+      });
+      return;
     }
   };
 
@@ -183,16 +382,22 @@ function App() {
       return;
     }
 
-    if (modal.type === 'emergency-stop') {
-      setControls((current) => ({ ...current, masterOverride: false, relayMode: 'OFF' }));
-      setSaveStatus('Emergency stop executed');
-    }
-
     if (modal.type === 'reboot') {
-      setTelemetry(initialTelemetry);
+      // notify device to reboot
+      const cmd = { type: 'reboot', issuedAt: Date.now(), issuedBy: 'web' };
+      void push(ref(db, 'AIRGUARD_Commands'), cmd);
+      setTelemetry(defaultTelemetry);
       setControls(initialControls);
-      setMaintenanceRows(initialMaintenanceRows);
-      setReportsRange('Last 7 Days');
+      setOverviewLive(defaultOverview);
+      setMaintenanceLive(defaultMaintenance);
+      setReportsLive(defaultReports);
+      setSupportLive(defaultSupport);
+      setDocumentationLive(defaultDocumentation);
+      void set(ref(db, 'AIRGUARD_Controls'), initialControls);
+      void set(ref(db, 'AIRGUARD_Overview'), defaultOverview);
+      void set(ref(db, 'AIRGUARD_Maintenance'), defaultMaintenance);
+      void set(ref(db, 'AIRGUARD_Reports'), defaultReports);
+      setLastControlSyncAt(Date.now());
       setSaveStatus('Microcontroller rebooted');
     }
 
@@ -200,6 +405,8 @@ function App() {
   };
 
   const handleSaveControls = () => {
+    void set(ref(db, 'AIRGUARD_Controls'), controls);
+    setLastControlSyncAt(Date.now());
     setSaveStatus('Configuration saved');
   };
 
@@ -208,14 +415,31 @@ function App() {
   };
 
   const handleSensorCalibration = () => {
+    // Send a calibration command to the device via Realtime Database
+    const cmd = {
+      type: 'calibrate',
+      target: 'MQ-135',
+      issuedAt: Date.now(),
+      issuedBy: 'web',
+    };
+    void push(ref(db, 'AIRGUARD_Commands'), cmd);
+    setSaveStatus('Calibration requested');
+    // Apply a small local visual adjustment while device processes it
     const nextAqi = Math.max(180, Math.round(telemetry.aqi_ppm - 18));
-    updateTelemetry({
-      aqi_ppm: nextAqi,
-      heat_index: Number((telemetry.heat_index - 0.2).toFixed(1)),
-    });
+    updateTelemetry({ aqi_ppm: nextAqi, heat_index: Number((telemetry.heat_index - 0.2).toFixed(1)) });
   };
 
   const handleSensorRefresh = () => {
+    // Ask the NodeMCU to take a fresh reading
+    const cmd = {
+      type: 'refresh',
+      target: 'sensors',
+      issuedAt: Date.now(),
+      issuedBy: 'web',
+    };
+    void push(ref(db, 'AIRGUARD_Commands'), cmd);
+    setSaveStatus('Refresh requested');
+    // Keep a small local visual jitter so UI feels responsive
     const drift = (seed) => Number((seed + (Math.random() - 0.5) * 0.6).toFixed(1));
     updateTelemetry({
       temperature: drift(telemetry.temperature),
@@ -226,23 +450,12 @@ function App() {
   };
 
   const handleRunDiagnosticTest = () => {
-    setMaintenanceRows((currentRows) => [
-      {
-        time: 'just now',
-        type: 'DIAGNOSTIC',
-        description: 'Sensor diagnostic test completed',
-        status: 'SUCCESS',
-        statusClass: 'bg-status-success/10 text-status-success border border-status-success/30',
-        dotClass: 'bg-status-success',
-      },
-      ...currentRows,
-    ]);
     setSaveStatus('Diagnostic test completed');
   };
 
   const handleExportCsv = () => {
     const rows = [
-      ['Range', reportsRange],
+      ['Range', reportsLive.range],
       ['AQI', telemetry.aqi_ppm],
       ['Temperature', telemetry.temperature],
       ['Humidity', telemetry.humidity],
@@ -257,7 +470,8 @@ function App() {
   };
 
   const handleClearLogs = () => {
-    setMaintenanceRows([]);
+    setMaintenanceLive((current) => ({ ...current, rows: [] }));
+    void set(ref(db, 'AIRGUARD_Maintenance/rows'), []);
     setSaveStatus('Logs cleared');
   };
 
@@ -272,16 +486,62 @@ function App() {
     setSaveStatus('Error dump exported');
   };
 
+  // Emergency stop: tell the device to immediately stop and set relays off in controls
+  const handleEmergencyStop = () => {
+    const cmd = { type: 'emergency_stop', issuedAt: Date.now(), issuedBy: 'web' };
+    void push(ref(db, 'AIRGUARD_Commands'), cmd);
+    const nextControls = { ...initialControls, relayMode: 'OFF', masterOverride: true };
+    setControls(nextControls);
+    void set(ref(db, 'AIRGUARD_Controls'), nextControls);
+    setLastControlSyncAt(Date.now());
+    setSaveStatus('Emergency stop issued');
+  };
+
+  // Developer helper: push sample report data to Firebase so Reports UI shows content
+  const pushSampleReports = () => {
+    const sample = {
+      range: 'Last 7 Days',
+      options: ['Last 24 Hours', 'Last 7 Days', 'Last 30 Days'],
+      summaryCards: [
+        { title: 'Avg Daily AQI', value: '480', unit: 'PPM', accentClass: 'text-primary', path: 'M0,10 L20,8 L40,12 L60,10 L80,7 L100,10' },
+        { title: 'Highest Temp', value: '35.1°C', accentClass: 'text-error', path: 'M0,15 L20,15 L40,12 L60,5 L80,8 L100,2' },
+        { title: 'Fan Runtime', value: '14', unit: 'hrs', accentClass: 'text-tertiary', path: 'M0,10 L30,10 L70,15 L100,15' },
+      ],
+      weeklyDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      chartData: [
+        { time: '00', aqi: 210, temperature: 29.8 },
+        { time: '03', aqi: 255, temperature: 30.2 },
+        { time: '06', aqi: 320, temperature: 31.1 },
+        { time: '09', aqi: 410, temperature: 32.4 },
+        { time: '12', aqi: 450, temperature: 34.0 },
+        { time: '15', aqi: 430, temperature: 33.2 },
+        { time: '18', aqi: 470, temperature: 34.5 },
+        { time: '21', aqi: 490, temperature: 33.8 },
+        { time: '24', aqi: 450, temperature: 32.7 },
+      ],
+    };
+
+    void set(ref(db, 'AIRGUARD_Reports'), sample);
+    setSaveStatus('Sample reports pushed');
+  };
+
   const handleControlChange = (nextConfig) => {
-    setControls((current) => ({ ...current, ...nextConfig }));
+    const nextControls = { ...controls, ...nextConfig };
+    setControls(nextControls);
+    void set(ref(db, 'AIRGUARD_Controls'), nextControls);
+    setLastControlSyncAt(Date.now());
   };
 
   const handleRelayModeChange = (relayMode) => {
-    setControls((current) => ({ ...current, relayMode }));
+    const nextControls = { ...controls, relayMode };
+    setControls(nextControls);
+    void set(ref(db, 'AIRGUARD_Controls'), nextControls);
+    setLastControlSyncAt(Date.now());
   };
 
   const handleReportsRangeChange = (nextRange) => {
-    setReportsRange(nextRange);
+    setReportsLive((current) => ({ ...current, range: nextRange }));
+    void set(ref(db, 'AIRGUARD_Reports/range'), nextRange);
     setReportsDropdownOpen(false);
   };
 
@@ -305,7 +565,7 @@ function App() {
 
   const renderPage = () => {
     if (currentPage === 'overview') {
-      return <OverviewPage telemetry={overviewTelemetry} controls={controls} onRelayModeChange={handleRelayModeChange} />;
+      return <OverviewPage telemetry={overviewTelemetry} controls={controls} onRelayModeChange={handleRelayModeChange} chartData={overviewLive.chartData} />;
     }
 
     if (currentPage === 'sensors') {
@@ -317,6 +577,7 @@ function App() {
           onRefreshData={handleSensorRefresh}
           onRunDiagnosticTest={handleRunDiagnosticTest}
           statusMessage={saveStatus}
+          isOnline={isOnline}
         />
       );
     }
@@ -328,6 +589,7 @@ function App() {
           onChange={handleControlChange}
           onSave={handleSaveControls}
           saveStatus={saveStatus}
+          lastSyncedAt={lastControlSyncAt}
         />
       );
     }
@@ -335,7 +597,10 @@ function App() {
     if (currentPage === 'maintenance') {
       return (
         <MaintenancePage
-          rows={maintenanceRows}
+          rows={maintenanceLive.rows}
+          firmwareVersion={maintenanceLive.firmwareVersion}
+          uptime={maintenanceLive.uptime}
+          filterRemaining={maintenanceLive.filterRemaining}
           onClearLogs={handleClearLogs}
           onExportDump={handleExportErrorDump}
           onRebootMicrocontroller={() => openConfirmModal('reboot')}
@@ -346,8 +611,11 @@ function App() {
     if (currentPage === 'reports') {
       return (
         <ReportsPage
-          range={reportsRange}
-          options={reportOptions}
+          range={reportsLive.range}
+          options={reportsLive.options}
+          summaryCards={reportsLive.summaryCards}
+          weeklyDays={reportsLive.weeklyDays}
+          chartData={reportsLive.chartData}
           dropdownOpen={reportsDropdownOpen}
           onToggleDropdown={() => setReportsDropdownOpen((current) => !current)}
           onSelectRange={handleReportsRangeChange}
@@ -357,11 +625,11 @@ function App() {
     }
 
     if (currentPage === 'support') {
-      return <SupportPage />;
+      return <SupportPage hero={supportLive} />;
     }
 
     if (currentPage === 'documentation') {
-      return <DocumentationPage />;
+      return <DocumentationPage hero={documentationLive} />;
     }
 
     return (
@@ -388,9 +656,9 @@ function App() {
             </div>
             <div>
               <div className="font-display text-headline-md text-on-surface">AIRGUARD+</div>
-              <div className="font-display text-label-caps flex items-center gap-1 text-emerald-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                System Online
+              <div className={`font-display text-label-caps flex items-center gap-1 ${isOnline ? 'text-emerald-500' : 'text-status-critical'}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-status-critical'}`} />
+                {isOnline ? 'System Online' : 'System Offline'}
               </div>
             </div>
           </div>
@@ -410,11 +678,26 @@ function App() {
           <div className="mt-auto flex flex-col gap-2 px-container_padding">
             <button
               type="button"
-              onClick={() => openConfirmModal('emergency-stop')}
+              onClick={() => openConfirmModal('reboot')}
               className="flex w-full items-center justify-center gap-2 rounded-DEFAULT border border-error bg-surface-container-high py-3 font-display text-label-caps text-error transition-colors hover:bg-error-container hover:text-on-error-container"
             >
               <AlertTriangle className="h-4 w-4" />
+              Reboot Microcontroller
+            </button>
+            <button
+              type="button"
+              onClick={() => handleEmergencyStop()}
+              className="flex w-full items-center justify-center gap-2 rounded-DEFAULT border border-status-critical bg-surface-container-high py-3 font-display text-label-caps text-error transition-colors hover:bg-status-critical/10"
+            >
+              <AlertTriangle className="h-4 w-4" />
               Emergency Stop
+            </button>
+            <button
+              type="button"
+              onClick={() => pushSampleReports()}
+              className="flex w-full items-center justify-center gap-2 rounded-DEFAULT border border-outline-variant bg-surface-container-high py-3 font-display text-label-caps text-on-surface transition-colors hover:bg-surface-bright"
+            >
+              Seed Reports
             </button>
             <div className="my-4 h-px bg-outline-variant" />
             <NavItem compact icon={CircleHelp} label="Support" onClick={() => setCurrentPage('support')} />

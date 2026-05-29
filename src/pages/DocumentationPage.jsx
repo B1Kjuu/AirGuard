@@ -1,5 +1,11 @@
 import { BookOpen, ClipboardList, FileText, TerminalSquare } from 'lucide-react';
 
+const documentationIconMap = {
+  TerminalSquare,
+  ClipboardList,
+  FileText,
+};
+
 function DocCard({ icon: Icon, title, description, bulletPoints }) {
   return (
     <article className="rounded-lg border border-outline-variant bg-surface-container p-5 industrial-inset">
@@ -24,7 +30,7 @@ function DocCard({ icon: Icon, title, description, bulletPoints }) {
   );
 }
 
-export default function DocumentationPage() {
+export default function DocumentationPage({ hero = { heroTitle: '', heroBody: '', cards: [] } }) {
   return (
     <div className="bg-surface-dim min-h-[calc(100vh-4rem)] px-container_padding pb-10 text-on-surface md:py-0">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
@@ -34,33 +40,23 @@ export default function DocumentationPage() {
               <BookOpen className="h-6 w-6" />
             </div>
             <div>
-              <div className="font-display text-headline-md text-on-surface">Documentation</div>
-              <p className="mt-2 max-w-3xl font-data text-data-sm leading-6 text-on-surface-variant">
-                Quick references for the dashboard workflow, control behavior, and maintenance routines.
-              </p>
+              <div className="font-display text-headline-md text-on-surface">{hero.heroTitle || 'Documentation'}</div>
+              {hero.heroBody ? <p className="mt-2 max-w-3xl font-data text-data-sm leading-6 text-on-surface-variant">{hero.heroBody}</p> : null}
             </div>
           </div>
         </section>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <DocCard
-            icon={TerminalSquare}
-            title="Quick Start"
-            description="Bring the dashboard online"
-            bulletPoints={['Open Overview to verify telemetry', 'Check Controls before changing relays', 'Use Sensors for calibration']} 
-          />
-          <DocCard
-            icon={ClipboardList}
-            title="Operational Notes"
-            description="How the shared controls state behaves"
-            bulletPoints={['Manual override is shared across pages', 'Save Configuration persists current settings', 'Emergency Stop opens a confirmation modal']}
-          />
-          <DocCard
-            icon={FileText}
-            title="Maintenance"
-            description="Logs and exports"
-            bulletPoints={['Clear Log removes the current event list', 'Export Error Dump downloads a text snapshot', 'Reports export the current range as CSV']}
-          />
+          {hero.cards.length ? (
+            hero.cards.map((card) => {
+              const Icon = documentationIconMap[card.iconName] ?? FileText;
+              return <DocCard key={card.title} icon={Icon} title={card.title} description={card.description} bulletPoints={card.bulletPoints ?? []} />;
+            })
+          ) : (
+            <div className="lg:col-span-3 rounded-lg border border-outline-variant bg-surface-container p-6 font-data text-data-sm text-on-surface-variant">
+              No live documentation data available.
+            </div>
+          )}
         </div>
       </div>
     </div>

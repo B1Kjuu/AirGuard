@@ -1,13 +1,14 @@
-import {
-  Clock3,
-  Download,
-  RefreshCw,
-  Trash2,
-} from 'lucide-react';
+import { Clock3, Download, RefreshCw, Trash2 } from 'lucide-react';
 
-export default function MaintenancePage({ rows, onClearLogs, onExportDump, onRebootMicrocontroller }) {
-  const eventRows = rows;
-
+export default function MaintenancePage({
+  rows = [],
+  firmwareVersion = 'v1.2.4',
+  uptime = { days: '14 Days', hours: '6 Hours' },
+  filterRemaining = 85,
+  onClearLogs,
+  onExportDump,
+  onRebootMicrocontroller,
+}) {
   return (
     <div className="mx-auto w-full max-w-[1920px] bg-surface-lowest p-container_padding md:pt-container_padding">
       <header className="mb-8">
@@ -19,7 +20,7 @@ export default function MaintenancePage({ rows, onClearLogs, onExportDump, onReb
         <div className="data-card flex flex-col justify-between rounded-lg p-6">
           <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">Firmware Version</span>
           <div className="mt-4">
-            <span className="font-data text-data-lg block text-primary">v1.2.4</span>
+            <span className="font-data text-data-lg block text-primary">{firmwareVersion}</span>
             <span className="mt-1 block font-data text-data-sm text-on-surface-variant">NodeMCU ESP8266</span>
           </div>
         </div>
@@ -27,21 +28,21 @@ export default function MaintenancePage({ rows, onClearLogs, onExportDump, onReb
         <div className="data-card flex flex-col justify-between rounded-lg p-6">
           <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">System Uptime</span>
           <div className="mt-4">
-            <span className="font-data text-data-lg block text-primary">14 Days</span>
-            <span className="mt-1 block font-data text-data-sm text-on-surface-variant">6 Hours</span>
+            <span className="font-data text-data-lg block text-primary">{uptime.days}</span>
+            <span className="mt-1 block font-data text-data-sm text-on-surface-variant">{uptime.hours}</span>
           </div>
         </div>
 
         <div className="data-card flex flex-col justify-between rounded-lg p-6">
           <div className="flex w-full items-center justify-between">
             <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">Exhaust Filter</span>
-            <span className="font-data text-data-sm text-status-success">85% Remaining</span>
+            <span className="font-data text-data-sm text-status-success">{filterRemaining}% Remaining</span>
           </div>
           <div className="mt-6 flex h-4 w-full gap-[1px] overflow-hidden rounded-sm bg-surface-container-highest p-[2px]">
             {Array.from({ length: 40 }).map((_, index) => (
               <div
                 key={`segment-${index}`}
-                className={`h-full flex-1 rounded-[1px] ${index < 34 ? 'bg-status-success' : 'bg-surface-container-highest'}`}
+                className={`h-full flex-1 rounded-[1px] ${index < Math.round((filterRemaining / 100) * 40) ? 'bg-status-success' : 'bg-surface-container-highest'}`}
               />
             ))}
           </div>
@@ -66,8 +67,8 @@ export default function MaintenancePage({ rows, onClearLogs, onExportDump, onReb
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 font-data text-data-sm text-on-surface">
-                {eventRows.map((row) => (
-                  <tr key={`${row.time}-${row.type}`} className="group transition-colors hover:bg-surface-container-high">
+                {rows.length ? rows.map((row) => (
+                  <tr key={`${row.time}-${row.type}-${row.description}`} className="group transition-colors hover:bg-surface-container-high">
                     <td className="p-4 pl-6 text-on-surface-variant group-hover:text-on-surface">{row.time}</td>
                     <td className="p-4 font-bold text-on-surface-variant">{row.type}</td>
                     <td className="p-4">{row.description}</td>
@@ -78,12 +79,13 @@ export default function MaintenancePage({ rows, onClearLogs, onExportDump, onReb
                       </span>
                     </td>
                   </tr>
-                ))}
-                <tr>
-                  <td className="border-none p-6 text-center text-on-surface-variant/40" colSpan={4}>
-                    ... end of recent logs ...
-                  </td>
-                </tr>
+                )) : (
+                  <tr>
+                    <td className="border-none p-6 text-center text-on-surface-variant/40" colSpan={4}>
+                      No log entries available.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

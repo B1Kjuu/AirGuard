@@ -1,5 +1,11 @@
 import { CircleHelp, Headphones, Mail, PhoneCall } from 'lucide-react';
 
+const supportIconMap = {
+  PhoneCall,
+  Mail,
+  CircleHelp,
+};
+
 function SupportCard({ icon: Icon, title, description, action }) {
   return (
     <article className="rounded-lg border border-outline-variant bg-surface-container p-5 industrial-inset">
@@ -17,7 +23,7 @@ function SupportCard({ icon: Icon, title, description, action }) {
   );
 }
 
-export default function SupportPage() {
+export default function SupportPage({ hero = { heroTitle: '', heroBody: '', cards: [] } }) {
   return (
     <div className="bg-surface-dim min-h-[calc(100vh-4rem)] px-container_padding pb-10 text-on-surface md:py-0">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
@@ -27,34 +33,23 @@ export default function SupportPage() {
               <Headphones className="h-6 w-6" />
             </div>
             <div>
-              <div className="font-display text-headline-md text-on-surface">Support Center</div>
-              <p className="mt-2 max-w-3xl font-data text-data-sm leading-6 text-on-surface-variant">
-                Use this page when the dashboard needs a human. It groups the quickest ways to reach the system owner,
-                request help, or capture a support ticket.
-              </p>
+              <div className="font-display text-headline-md text-on-surface">{hero.heroTitle || 'Support Center'}</div>
+              {hero.heroBody ? <p className="mt-2 max-w-3xl font-data text-data-sm leading-6 text-on-surface-variant">{hero.heroBody}</p> : null}
             </div>
           </div>
         </section>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <SupportCard
-            icon={PhoneCall}
-            title="Emergency Contact"
-            description="Call the on-site maintenance number"
-            action="Primary line: +1 (555) 019-2048"
-          />
-          <SupportCard
-            icon={Mail}
-            title="Ticketing"
-            description="Send logs or screenshots to the support inbox"
-            action="Email: support@airguard.local"
-          />
-          <SupportCard
-            icon={CircleHelp}
-            title="Remote Help"
-            description="Request a guided session with the operations team"
-            action="Availability: Mon-Fri, 08:00-18:00"
-          />
+          {hero.cards.length ? (
+            hero.cards.map((card) => {
+              const Icon = supportIconMap[card.iconName] ?? CircleHelp;
+              return <SupportCard key={card.title} icon={Icon} title={card.title} description={card.description} action={card.action} />;
+            })
+          ) : (
+            <div className="lg:col-span-3 rounded-lg border border-outline-variant bg-surface-container p-6 font-data text-data-sm text-on-surface-variant">
+              No live support data available.
+            </div>
+          )}
         </div>
       </div>
     </div>
