@@ -107,6 +107,7 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
 }
 
 function App() {
+  const [telemetry, setTelemetry] = useState(defaultTelemetry);
   const [controls, setControls] = useState(initialControls);
   const [currentPage, setCurrentPage] = useState('overview');
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false);
