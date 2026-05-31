@@ -103,11 +103,7 @@ export default function MaintenancePage({
                 <Download className="h-4 w-4 text-on-surface-variant" />
                 Export Error Dump
               </button>
-              <hr className="my-3 border-outline-variant/30" />
-              <button type="button" onClick={onRebootMicrocontroller} className="group flex w-full items-center justify-center gap-2 rounded border border-status-critical/30 bg-surface-container-lowest px-4 py-3 font-label-caps text-label-caps uppercase text-status-critical transition-colors hover:bg-status-critical/10">
-                <RefreshCw className="h-4 w-4 group-hover:animate-spin" />
-                Reboot Microcontroller
-              </button>
+              
             </div>
           </div>
         </div>

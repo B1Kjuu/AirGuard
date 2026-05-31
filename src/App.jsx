@@ -615,7 +615,6 @@ function App() {
           filterRemaining={maintenanceLive.filterRemaining}
           onClearLogs={handleClearLogs}
           onExportDump={handleExportErrorDump}
-          onRebootMicrocontroller={() => openConfirmModal('reboot')}
         />
       );
     }
@@ -688,22 +687,6 @@ function App() {
           </nav>
 
           <div className="mt-auto flex flex-col gap-2 px-container_padding">
-            <button
-              type="button"
-              onClick={() => openConfirmModal('reboot')}
-              className="flex w-full items-center justify-center gap-2 rounded-DEFAULT border border-error bg-surface-container-high py-3 font-display text-label-caps text-error transition-colors hover:bg-error-container hover:text-on-error-container"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Reboot Microcontroller
-            </button>
-            <button
-              type="button"
-              onClick={() => openConfirmModal('emergency_stop')}
-              className="flex w-full items-center justify-center gap-2 rounded-DEFAULT border border-status-critical bg-surface-container-high py-3 font-display text-label-caps text-error transition-colors hover:bg-status-critical/10"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Emergency Stop
-            </button>
             <button
               type="button"
               onClick={() => pushSampleReports()}
