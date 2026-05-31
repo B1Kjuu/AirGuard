@@ -72,6 +72,10 @@ const defaultDocumentation = {
   cards: [],
 };
 
+const AUTH_STORAGE_KEY = 'airguard-authenticated';
+const AUTH_USERNAME = 'Admin';
+const AUTH_PASSWORD = 'Admin123';
+
 function downloadTextFile(filename, contents, mimeType = 'text/plain;charset=utf-8') {
   const blob = new Blob([contents], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -107,6 +111,10 @@ function NavItem({ icon: Icon, label, active = false, compact = false, onClick }
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => window.sessionStorage.getItem(AUTH_STORAGE_KEY) === 'true');
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [telemetry, setTelemetry] = useState(defaultTelemetry);
   const [controls, setControls] = useState(initialControls);
   const [currentPage, setCurrentPage] = useState('overview');
@@ -122,6 +130,20 @@ function App() {
   const [lastControlSyncAt, setLastControlSyncAt] = useState(0);
   const lastTelemetryUpdateRef = useRef(0);
   const telemetryStaleTimeoutMs = 12000;
+
+  const handleLogin = (event) => {
+    event.preventDefault();
+
+    if (loginUsername === AUTH_USERNAME && loginPassword === AUTH_PASSWORD) {
+      window.sessionStorage.setItem(AUTH_STORAGE_KEY, 'true');
+      setIsAuthenticated(true);
+      setLoginError('');
+      setLoginPassword('');
+      return;
+    }
+
+    setLoginError('Invalid username or password.');
+  };
 
   useEffect(() => {
     const liveRef = ref(db, 'AIRGUARD_Live');
@@ -352,6 +374,57 @@ function App() {
     }),
     [fanStatus, controls.masterOverride, telemetry],
   );
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-10 text-on-surface antialiased sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md items-center">
+          <form onSubmit={handleLogin} className="w-full rounded-2xl border border-outline-variant bg-surface-container p-8 shadow-2xl industrial-inset">
+            <div className="mb-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-outline-variant bg-surface-container-high">
+                <Router className="h-7 w-7 text-primary" />
+              </div>
+              <h1 className="mt-4 font-display text-headline-md text-on-surface">AIRGUARD+</h1>
+              <p className="mt-2 font-data text-data-sm text-on-surface-variant">Sign in to continue to the dashboard.</p>
+            </div>
+
+            <label className="mb-4 block">
+              <span className="mb-2 block font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">Username</span>
+              <input
+                type="text"
+                value={loginUsername}
+                onChange={(event) => setLoginUsername(event.target.value)}
+                autoComplete="username"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-high px-4 py-3 font-data text-data-sm text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/50 focus:border-primary"
+                placeholder="Admin"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">Password</span>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                autoComplete="current-password"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-high px-4 py-3 font-data text-data-sm text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/50 focus:border-primary"
+                placeholder="Admin123"
+              />
+            </label>
+
+            {loginError ? <p className="mt-4 rounded-lg border border-status-critical/30 bg-status-critical/10 px-4 py-3 font-data text-data-sm text-status-critical">{loginError}</p> : null}
+
+            <button
+              type="submit"
+              className="mt-6 flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 font-label-caps text-label-caps uppercase tracking-wider text-on-primary transition-colors hover:brightness-110"
+            >
+              Enter Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   const openConfirmModal = (type) => {
     if (type === 'reboot') {
